@@ -14,6 +14,32 @@
 		stdout-path = "serial2:1500000n8";
 	};
 
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,rk3328";
+		simple-audio-card,cpu {
+			sound-dai = <&i2s1>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&codec>;
+		};
+	};
+
+	hdmi-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <128>;
+		simple-audio-card,name = "rockchip,hdmi";
+		simple-audio-card,cpu {
+			sound-dai = <&i2s0>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&hdmi>;
+		};
+	};
+
 	gmac_clkin: external-gmac-clock {
 		compatible = "fixed-clock";
 		clock-frequency = <125000000>;
@@ -83,6 +109,62 @@
 		regulator-boot-on;
 	};
 
+	fan0: pwm-fan {
+		compatible = "pwm-fan";
+		pwms = <&pwm2 0 10000 0>;
+		cooling-min-state = <0>;
+		cooling-max-state = <12>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 40 60 80 100
+				 120 140 160 180 200
+				 220 240 255>;
+	};
+
+	thermal-zones {
+		soc-thermal {
+			trips {
+				threshold: trip-point0 {
+					temperature = <40000>;
+					hysteresis = <10000>;
+					type = "active";
+				};
+				target: trip-point1 {
+					temperature = <50000>;
+					hysteresis = <10000>;
+					type = "active";
+				};
+				soc_crit: soc-crit {
+					temperature = <95000>;
+					hysteresis = <10000>;
+					type = "critical";
+				};
+			};
+
+			/delete-node/ cooling-maps;
+			cooling-maps {
+				map0 {
+					trip = <&threshold>;
+					cooling-device = <&fan0 1 3>;
+					contribution = <4096>;
+				};
+				map1 {
+					trip = <&target>;
+					cooling-device = <&fan0 3 12>;
+					contribution = <4096>;
+				};
+				map2 {
+					trip = <&soc_crit>;
+					cooling-device = <&cpu0 8 8>,
+							 <&cpu1 8 8>,
+							 <&cpu2 8 8>,
+							 <&cpu3 8 8>,
+							 <&fan0 8 8>;
+					contribution = <4096>;
+				};
+			};
+		};
+	};
+
 	leds {
 		compatible = "gpio-leds";
 
@@ -104,6 +186,11 @@
 	};
 };
 
+&codec {
+	#sound-dai-cells = <0>;
+	status = "okay";
+};
+
 &cpu0 {
 	cpu-supply = <&vdd_arm>;
 };
@@ -118,6 +205,20 @@
 
 &cpu3 {
 	cpu-supply = <&vdd_arm>;
+};
+
+&cpu0_opp_table {
+	opp-1392000000 {
+		opp-hz = /bits/ 64 <1392000000>;
+		opp-microvolt = <1325000>;
+		clock-latency-ns = <40000>;
+	};
+	opp-1512000000 {
+		status = "disabled";
+		opp-hz = /bits/ 64 <1512000000>;
+		opp-microvolt = <1350000>;
+		clock-latency-ns = <40000>;
+	};
 };
 
 &emmc {
@@ -270,6 +371,22 @@
 	};
 };
 
+&i2s0 {
+	#sound-dai-cells = <0>;
+	rockchip,bclk-fs = <128>;
+	status = "okay";
+};
+
+&i2s1 {
+	#sound-dai-cells = <0>;
+	status = "okay";
+};
+
+&gpu {
+	status = "okay";
+	mali-supply = <&vdd_logic>;
+};
+
 &io_domains {
 	status = "okay";
 
@@ -292,6 +409,12 @@
 	usb2 {
 		usb20_host_drv: usb20-host-drv {
 			rockchip,pins = <1 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	usb3 {
+		usb30_host_drv: usb30-host-drv {
+			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
@@ -319,22 +442,20 @@
 
 &u2phy {
 	status = "okay";
-};
 
-&u2phy_host {
-	status = "okay";
-};
+	u2phy_host {
+		status = "okay";
+	};
 
-&u2phy_otg {
-	status = "okay";
-};
-
-&uart2 {
-	status = "okay";
+	u2phy_otg {
+		status = "okay";
+		dr_mode = "host";
+	};
 };
 
 &usb20_otg {
 	status = "okay";
+	dr_mode = "host";
 };
 
 &usb_host0_ehci {
@@ -342,6 +463,19 @@
 };
 
 &usb_host0_ohci {
+	status = "okay";
+};
+
+&usbdrd3 {
+	status = "okay";
+};
+
+&usbdrd_dwc3 {
+	dr_mode = "host";
+	status = "okay";
+};
+
+&uart2 {
 	status = "okay";
 };
 
